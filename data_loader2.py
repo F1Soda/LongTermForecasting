@@ -1,33 +1,29 @@
 import pandas as pd
-import numpy as np
-import time
 import os
-import requests
 from data_keys import *
-# import returns
 
 data_dir = 'data/'
 
 
 def _resample_daily(data):
     """
-    Resample data using linear interpolation.
+    Пересэмплирование данных с использованием линейной интерполяции.
 
-    :param data: Pandas DataFrame or Series.
-    :return: Resampled daily data.
+    :param data: DataFrame или Series Pandas.
+    :return: Пересэмплированные данные с ежедневной частотой.
     """
     return data.resample('D').interpolate(method='linear')
 
 
 def _load_data(path):
     """
-    Load a CSV-file with tab-separation, date-index is in first column
-    and uses the MM/DD/YYYY.
+    Загружает CSV-файл с табуляцией в качестве разделителя, индексом дат в первом столбце
+    и форматом даты MM/DD/YYYY.
 
-    This is a simple wrapper for Pandas.read_csv().
+    Это простой обертка над Pandas.read_csv().
 
-    :param path: Path for the data-file.
-    :return: Pandas DataFrame.
+    :param path: Путь к файлу с данными.
+    :return: DataFrame Pandas.
     """
     data = pd.read_csv(path,
                        sep="\t",
@@ -40,27 +36,26 @@ def _load_data(path):
 
 def load_price_yahoo(ticker):
     """
-    Load share-price data from a Yahoo CSV-file.
+    Загрузка данных о цене акций из CSV-файла Yahoo.
 
-    Only retrieve the 'Close' and 'Adj Close' prices
-    which are interpolated to daily values.
+    Загружаются только цены 'Close' и 'Adj Close',
+    которые интерполируются до ежедневных значений.
 
-    The 'Close' price-data is adjusted for stock-splits.
+    Данные о ценах 'Close' корректируются с учетом сплитов акций.
 
-    The 'Adj Close' price-data is adjusted for both
-    stock-splits and dividends, so it corresponds to
-    the Total Return.
+    Данные о ценах 'Adj Close' корректируются как для сплитов акций,
+    так и для дивидендов, что соответствует общей доходности (Total Return).
 
     https://help.yahoo.com/kb/SLN2311.html
 
-    :param ticker: Ticker-name for the data to load.
-    :return: Pandas DataFrame with SHARE_PRICE and TOTAL_RETURN
+    :param ticker: Тикер для загрузки данных.
+    :return: DataFrame Pandas с данными SHARE_PRICE и TOTAL_RETURN.
     """
 
-    # Path for the data-file to load.
+    # Путь для подгрузки данных
     path = os.path.join(data_dir, ticker + " Share-Price (Yahoo).csv")
 
-    # Read share-prices from file.
+    # Считываем стоимость акции с файла
     price_raw = pd.read_csv(path,
                             index_col=0,
                             header=0,
@@ -68,7 +63,7 @@ def load_price_yahoo(ticker):
                             parse_dates=[0],
                             dayfirst=False)
 
-    # Rename columns.
+    # Переименовываем столбцы
     columns = \
         {
             'Adj Close': TOTAL_RETURN,
@@ -76,10 +71,10 @@ def load_price_yahoo(ticker):
         }
     price = price_raw.rename(columns=columns)
 
-    # Select the columns we need.
+    # Выбираем столбцы, которые нам нужны
     price = price[[TOTAL_RETURN, SHARE_PRICE]]
 
-    # Interpolate to get prices for all days.
+    # Интерполируем для поучения стоимостей за все дни
     price_daily = _resample_daily(price)
 
     return price_daily
@@ -87,173 +82,178 @@ def load_price_yahoo(ticker):
 
 def load_earnings_per_share(ticker, df, profit_margin=True):
     """
-    Load the Earnings Per Share from a data-file and add it to the DataFrame.
-    Also calculate the P/E ratio and profit margin.
+    Загружает данные о прибыли на акцию (Earnings Per Share) из файла и добавляет их в DataFrame.
+    Также рассчитываются коэффициент P/E и рентабельность продаж(profit margin).
 
     :param ticker:
-        Name of the stock used in the filenames e.g. "WMT"
+        Название акции, используемое в именах файлов, например, "WMT".
 
     :param df:
-        Pandas DataFrame with SHARE_PRICE.
+        DataFrame Pandas с данными SHARE_PRICE.
 
     :param profit_margin:
-        Boolean whether to add the profit margin to the DataFrame.
-        Requires that df already contains SALES_PER_SHARE.
+        Булевый параметр, указывающий, добавлять ли рентабельность продаж в DataFrame.
+        Требует, чтобы в df уже были данные SALES_PER_SHARE.
 
     :return:
-        None. Data is added to the `df` DataFrame.
+        None. Данные добавляются в DataFrame `df`.
     """
 
-    # Load data.
+    # Подгружаем данные
     path = os.path.join(data_dir, ticker + " Earnings Per Share.txt")
     earnings_per_share = _load_data(path=path)
 
-    # Add to the DataFrame (interpolated daily).
+    # Добавлем в DataFrame (интерполированные по дням)
     df[EARNINGS_PER_SHARE] = _resample_daily(earnings_per_share)
 
-    # Add valuation ratio to the DataFrame (daily).
+    # Добавляем мультипликатор (По дням)
     df[PE] = df[SHARE_PRICE] / df[EARNINGS_PER_SHARE]
 
-    # Add profit margin to the DataFrame (daily).
+    # Добавляем рентабельность продаж (По дням)
     if profit_margin:
         df[PROFIT_MARGIN] = df[EARNINGS_PER_SHARE] / df[SALES_PER_SHARE]
 
 
 def load_sales_per_share(ticker, df):
     """
-    Load the Sales Per Share from a data-file and add it to the DataFrame.
-    Also calculate the P/Sales ratio and one-year growth in Sales Per Share.
+    Загружает данные о продажах на акцию (Sales Per Share) из файла и добавляет их в DataFrame.
+    Также рассчитываются коэффициент P/Sales и годовой рост продаж на акцию.
 
     :param ticker:
-        Name of the stock used in the filenames e.g. "WMT"
+        Название акции, используемое в именах файлов, например, "WMT".
 
     :param df:
-        Pandas DataFrame with SHARE_PRICE.
+        DataFrame Pandas с данными SHARE_PRICE.
 
     :return:
-        None. Data is added to the `df` DataFrame.
+        None. Данные добавляются в DataFrame `df`.
     """
 
-    # Load data.
+    # Подгружаем данные
     path = os.path.join(data_dir, ticker + " Sales Per Share.txt")
     sales_per_share = _load_data(path=path)
 
-    # Add to the DataFrame (interpolated daily).
+    # Добавляем к DataFrame (Интерполированный по дням).
     df[SALES_PER_SHARE] = _resample_daily(sales_per_share)
 
-    # # Add valuation ratio to the DataFrame (daily).
+    # Добавляем мультипликатор (По дням)
     df[PSALES] = df[SHARE_PRICE] / df[SALES_PER_SHARE]
 
-    # # Add growth to the DataFrame (daily).
+    # Добавляем годовой рост дохода (По дням).
     df[SALES_GROWTH] = df[SALES_PER_SHARE].pct_change(periods=365, fill_method=None)
 
 
 def load_book_value_per_share(ticker, df):
     """
-    Load the Book-Value Per Share from a data-file and add it to the DataFrame.
-    Also calculate the P/Book ratio.
+    Загружает данные о балансовой стоимости на акцию (Book-Value Per Share) из файла и добавляет их в DataFrame.
+    Также рассчитывается коэффициент P/Book.
 
     :param ticker:
-        Name of the stock used in the filenames e.g. "WMT"
+        Название акции, используемое в именах файлов, например, "WMT".
 
     :param df:
-        Pandas DataFrame with SHARE_PRICE.
+        DataFrame Pandas с данными SHARE_PRICE.
 
     :return:
-        None. Data is added to the `df` DataFrame.
+        None. Данные добавляются в DataFrame `df`.
     """
 
-    # Load data.
+    # Подгружаем данные
     path = os.path.join(data_dir, ticker + " Book-Value Per Share.txt")
     book_value_per_share = _load_data(path=path)
 
-    # Add to the DataFrame (interpolated daily).
+    # Добавляем к DataFrame (Интерполированный по дням).
     df[BOOK_VALUE_PER_SHARE] = _resample_daily(book_value_per_share)
 
-    # Add valuation ratio to the DataFrame (daily).
+    # Добавляем мультипликатор (По дням)
     df[PBOOK] = df[SHARE_PRICE] / df[BOOK_VALUE_PER_SHARE]
 
 
 def load_dividend_TTM(ticker, df):
     """
-    Load the Dividend Per Share TTM (Trailing Twelve Months) from a data-file and
-    add it to the DataFrame. Also calculate some related valuation ratios.
+    Загружает данные о дивиденде на акцию за последние двенадцать месяцев (TTM, Trailing Twelve Months) из файла и
+    добавляет их в DataFrame. Также рассчитываются некоторые связанные коэффициенты оценки.
 
     :param ticker:
-        Name of the stock-index used in the filenames e.g. "S&P 500"
+        Название акции или индекса, используемое в именах файлов, например, "S&P 500".
 
     :param df:
-        Pandas DataFrame with SHARE_PRICE.
+        DataFrame Pandas с данными SHARE_PRICE.
 
     :return:
-        None. Data is added to the `df` DataFrame.
+        None. Данные добавляются в DataFrame `df`.
     """
 
-    # Load data.
+    # Подгружаем данные
     path = os.path.join(data_dir, ticker + " Dividend Per Share TTM.txt")
     dividend_per_share_TTM = _load_data(path=path)
 
-    # Add to the DataFrame (interpolated daily).
+    # Добавляем к DataFrame (Интерполированный по дням).
     df[DIVIDEND_TTM] = _resample_daily(dividend_per_share_TTM)
 
-    # Add valuation ratios to the DataFrame (daily).
+    # Добавляем мультипликаторы (По дням)
     df[PDIVIDEND] = df[SHARE_PRICE] / df[DIVIDEND_TTM]
+    # Вот тут есть некоторого рода ошибка:
+    # Мы нарушаем наше правило, что для момента t мы считаем её будущее значение, 
+    # в то время как тут считаем для текущего значени (заглядывая назад).
+    # Но на самом деле это не повлияет на расчёт, так как мы всё равно берём матожу,
+    # А ей вообще по барабану на то в какой последовательности идут данные
     df[DIVIDEND_YIELD] = df[DIVIDEND_TTM] / df[SHARE_PRICE]
 
 
 def load_stock_data(ticker, earnings=True, sales=True, book_value=True,
                     dividend_TTM=False):
     """
-    Load data for a single stock from several different files
-    and combine them into a single Pandas DataFrame.
+    Загружает данные для одной акции из нескольких файлов
+    и объединяет их в один DataFrame Pandas.
 
-    - Price is loaded from a Yahoo-file.
-    - Other data is loaded from separate files.
+    - Цена загружается из файла Yahoo.
+    - Остальные данные загружаются из отдельных файлов.
 
-    The Total Return is taken directly from the Yahoo price-data.
-    Valuation ratios such as P/E and P/Sales are calculated daily
-    from interpolated data.
+    Общая доходность берется напрямую из данных о ценах Yahoo.
+    Оценочные коэффициенты, такие как P/E и P/Sales, рассчитываются ежедневно
+    из интерполированных данных.
 
     :param ticker:
-        Name of the stock used in the filenames e.g. "WMT"
+        Название акции, используемое в именах файлов, например, "WMT".
 
     :param earnings:
-        Boolean whether to load data-file for Earnings Per Share.
+        Булевый параметр, указывающий, загружать ли файл с данными о прибыли на акцию (EPS).
 
     :param sales:
-        Boolean whether to load data-file for Sales Per Share.
+        Булевый параметр, указывающий, загружать ли файл с данными о продажах на акцию.
 
     :param book_value:
-        Boolean whether to load data-file for Book-Value Per Share.
+        Булевый параметр, указывающий, загружать ли файл с данными о балансовой стоимости на акцию.
 
     :param dividend_TTM:
-        Boolean whether to load data-file for Dividend Per Share TTM.
+        Булевый параметр, указывающий, загружать ли файл с данными о дивидендах на акцию за 12 месяцев (TTM).
 
-    :return: Pandas DataFrame with the data.
+    :return: DataFrame Pandas с данными.
     """
-    # Load the data-files.
+    # Подгружаем данные из файлов
     price_daily = load_price_yahoo(ticker=ticker)
 
-    # Use the DataFrame for the price and add more data-columns to it.
+    # Используем DataFrame для цен, чтобы затем добавить больше колонок к нему
     df = price_daily
 
-    # Only keep the rows where the share-price is defined.
+    # Оставляем только строки, где стоимость акции определена
     df.dropna(subset=[SHARE_PRICE], inplace=True)
 
-    # Load Sales Per Share data.
+    # Подгружаем доход к одной акции 
     if sales:
         load_sales_per_share(ticker=ticker, df=df)
 
-    # Load Earnings Per Share data.
-    # This needs the Sales Per Share data to calculate the profit margin.
+    # Подгружаем прибыль к одной акции
+    # Для расчета рентабельности продаж требуется также загрузить данные о продажах на акцию (Sales Per Share).
     if earnings:
         load_earnings_per_share(ticker=ticker, df=df)
 
-    # Load Book-Value Per Share data.
+    # Подгружаем Book-Value Per Share data
     if book_value:
         load_book_value_per_share(ticker=ticker, df=df)
 
-    # Load Dividend Per Share TTM data.
+    # Подгружаем суму дивиденды за 12 месяцев на одну акцию
     if dividend_TTM:
         load_dividend_TTM(ticker=ticker, df=df)
 
