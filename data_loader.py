@@ -8,64 +8,58 @@ import numpy as np
 
 def one_period_returns(prices, future):
     """
-
+    Рассчитывает доходность за один период для заданных цен акций.
     Этот метод считает доходность по следующей формуле:
 
     R_t = (X_t - X_{t-1}) / X_{t-1}
-
-    Calculate the one-period return for the given share-prices.
     
-    Note that these have 1.0 added so e.g. 1.05 means a one-period
-    gain of 5% and 0.98 means a -2% loss.
+    Обратите внимание, что к этим значениям добавляется 1.0, например:
+    1.05 означает прирост на 5% за один период, а 0.98 — убыток на 2%.
 
     :param prices:
-        Pandas DataFrame with e.g. daily stock-prices.
+        Pandas DataFrame, содержащий, например, дневные цены акций.
         
     :param future:
-        Boolean whether to calculate the future returns (True)
-        or the past returns (False).
+        Логическое значение, указывающее, нужно ли вычислять доходность в будущем (True)
+        или в прошлом (False).
         
     :return:
-        Pandas DataFrame with one-period returns.
+        Pandas DataFrame с доходностью за один период.
     """
-    # One-period returns plus 1.
-    # percentage change
+    # Однопериодная доходность + 1
+    # Изначально формула pct_change = (X_t - X_{t-1}) / X_{t-1}
     rets = prices.pct_change(periods=1) + 1.0
     
-    # Shift 1 time-step if we want future instead of past returns.
+    # Сдвигаем на 1 шаг назад, чтобы получить формулу для будущей доходности
     if future:
         rets = rets.shift(-1)
 
     return rets
 
 def get_bad_tickers(daily_returns_all, all_tickers, df_daily_prices):
-
-
-    # Find tickers whose median daily trading market-cap < 1e6
+    # Находим тикеры, чьи ежедневная рыночкая капитализация меньше 1_000_000 
     daily_trade_mcap = df_daily_prices[CLOSE] * df_daily_prices[VOLUME]
     mask = (daily_trade_mcap.groupby(level=0).median() < 1e7)
     bad_tickers1 = mask[mask].reset_index()[TICKER].unique()
 
-    # Find tickers whose max daily returns > 100%
+    # Находим тикеры, чьё максимальный доход в день составлял больше 100%
     mask2 = (daily_returns_all > 2.0)
     mask2 = (np.sum(mask2) >= 1) # если есть хотя бы один такой день, то убираем
     bad_tickers2 = mask2[mask2].index.to_list()
 
-    # Find tickers which have too little data, so that more than 20%
-    # of the rows are NaN (Not-a-Number).
+    # Находим тикеры, у которых больше 20% процентов данных nan-ы(Not-a-Number)
     mask3 = (daily_returns_all.isna().sum(axis=0) > 0.2 * len(daily_returns_all))
     bad_tickers3 = mask3[mask3].index.to_list()
 
-    # Find tickers that end with '_old'.
-    # These stocks have been delisted for some reason.
+    # Находим тикеры, которые заканчиваются '_old'.
+    # Они были удалены по какой то причине
     bad_tickers4 = [ticker for ticker in all_tickers[1:]
                     if ticker.endswith('_old')]
 
-    # Tickers that we know have problematic / erroneous data.
+    # Тикеры, для которых мы знаем, что есть проблемы с данными
     bad_tickers5= ['FCAUS']
 
-
-    # Concatenate the different bad tickers we have found.
+    # Объединяем всё вместе
     bad_tickers = np.unique(np.concatenate([bad_tickers1, bad_tickers2,
                                             bad_tickers3, bad_tickers4,
                                             bad_tickers5]))
@@ -73,66 +67,65 @@ def get_bad_tickers(daily_returns_all, all_tickers, df_daily_prices):
     return bad_tickers
 
 def prepare_data(df_daily_prices):
-    # Use the daily "Total Return" series which is the stock-price
-    # adjusted for stock-splits and reinvestment of dividends.
-    # This is a Pandas DataFrame in matrix-form where the rows are
-    # time-steps and the columns are for the individual stock-tickers.
+    # Используем ежедневные данные "Total Return", которые представляют собой цены акций,
+    # скорректированные на сплиты акций и реинвестирование дивидендов.
+    # Это объект Pandas DataFrame в виде матрицы, где строки соответствуют временным шагам,
+    # а столбцы — отдельным тикерам акций.
     daily_prices = df_daily_prices[TOTAL_RETURN].unstack().T
 
-    # Remove rows that have very little data. Sometimes this dataset
-    # has "phantom" data-points for a few stocks e.g. on weekends.
+    # Удаляем строки, содержащие очень мало данных. Иногда в этом наборе данных
+    # встречаются «фантомные» точки данных для некоторых акций, например, по выходным.
     num_stocks = len(daily_prices.columns)
     daily_prices = daily_prices.dropna(thresh=int(0.1 * num_stocks))
 
-    # Remove the first row because sometimes it is incomplete.
+    # Убираем первый ряд, так как иногда в нем отсутсвуют данные
     daily_prices = daily_prices.iloc[:, 1:]
 
-    # Daily stock-returns calculated from the "Total Return".
-    # We could have used SimFin's function hub.returns() but
-    # this code makes it easier for you to use another data-source.
-    # This is a Pandas DataFrame in matrix-form where the rows are
-    # time-steps and the columns are for the individual tickers.
+    # Ежедневная доходность акций, рассчитанная на основе "Total Return".
+    # Мы могли бы использовать функцию hub.returns() из SimFin,
+    # но этот код позволяет вам проще использовать другой источник данных.
+    # Это объект Pandas DataFrame в виде матрицы, где строки — это временные шаги,
+    # а столбцы — это отдельные тикеры акций.
     daily_returns_all = one_period_returns(prices=daily_prices, future=True)
 
-    # Remove empty rows (this should only be the first row).
+    # Убираем пустые строчки(Должен быть самый последний)
     daily_returns_all = daily_returns_all.dropna(how='all')
 
-    # All available stock-tickers.
+    # Получаем список всех доступных тикеров
     all_tickers = daily_prices.columns.to_list()
 
     bad_tickers = get_bad_tickers(daily_returns_all, all_tickers, df_daily_prices)
 
-    # These are the valid stock-tickers we will be using.
+    # Получаем список валидных тикеров
     valid_tickers = [x for x in all_tickers if x not in bad_tickers] 
 
-    # IMPORTANT!
-    # This forward- and backward-fills the daily share-prices
-    # so they are available for all the same dates. Otherwise
-    # when we create a portfolio of many random stocks, we would
-    # have to limit the period to the range of dates that all stocks
-    # have in common. For large portfolios of e.g. 300 stocks they
-    # would often only have common data-periods for a few years.
-    # When the missing share-prices are filled like this, it
-    # corresponds to investing that part of the portfolio in cash.
-    # This does not matter for the Buy&Hold, Threshold, Adaptive
-    # and Adaptive+ portfolios, but it may affect the Rebalanced
-    # portfolio. You can easily disable this filling and only use
-    # the original share-price data in all the experiments below,
-    # simply by changing to `if False` instead.
+    # ВАЖНО!
+    # Здесь выполняется заполнение пропущенных данных вперёд и назад (forward- и backward-fill)
+    # для ежедневных цен акций, чтобы все акции имели данные за одни и те же даты.
+    # Иначе при создании портфеля из множества случайных акций нам пришлось бы
+    # ограничивать период данными, которые есть у всех акций одновременно.
+    # Например, для портфеля из 300 акций общий период с данными
+    # может быть всего несколько лет.
+    # Когда пропущенные цены акций заполняются таким образом,
+    # это соответствует тому, что часть портфеля инвестируется в кэш.
+    # Это не влияет на портфели Buy&Hold, Threshold, Adaptive
+    # и Adaptive+, но может повлиять на портфель Rebalanced.
+    # Вы можете легко отключить это заполнение и использовать только
+    # исходные данные о ценах акций во всех экспериментах ниже,
+    # просто изменив условие на `if False` вместо `if True`.
     if True:
-        # Forward- and backward-fill the missing share-prices.
+        # Заполняем все nan-ы используя сначала forward-заполнение, а затем backward
         daily_prices = daily_prices.ffill().bfill()
         
-        # Re-calculate the daily returns with the filled share-prices.
-        # This creates 0% returns for the filled data, which basically
-        # just corresponds to a cash-position.
-        daily_returns_all = \
-            one_period_returns(prices=daily_prices, future=True)
+        # Перерасчитываем дневную доходность.
+        # Для дней, которые мы заполнили значениями с прошлого
+        # доходность будет 0% 
+        daily_returns_all = one_period_returns(prices=daily_prices, future=True)
         
-    # Only use data for the valid stock-tickers.
+    # Используем данные только для валидных тикеров
     daily_returns = daily_returns_all[valid_tickers]
 
-    # убираем последню строчку, так как там только наны
+    # убираем последню строчку, так как там только нан
     daily_returns = daily_returns.iloc[:-1]    
 
     return daily_returns
