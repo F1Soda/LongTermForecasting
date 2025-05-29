@@ -31,6 +31,7 @@ class ForecastModel:
         # Расчитываем параметр `b` для стандартного квадратичного отклонения ann.return.
         self.b = self.std_parameter()
 
+
     def forecast(self, psales_t):
         """
         Используем обученную модель для прогнозирования матожидания значения и стандартного отклонения
@@ -51,6 +52,7 @@ class ForecastModel:
 
         return mean, std
 
+
     def mean_parameter(self):
         """
         Оцениваем параметр `a`, используемый в формуле для
@@ -66,6 +68,7 @@ class ForecastModel:
           * np.mean(self.psales ** (1/self.years))
 
         return a
+
 
     def std_parameter(self, num_samples=10000):
         """
@@ -113,6 +116,7 @@ class ForecastModel:
 
         return b
     
+
     def _ttest(self, err_forecast, err_baseline):
         """
         Выполняем t-тест на ошибках нашей модели
@@ -137,6 +141,7 @@ class ForecastModel:
         t_value, p_value = ttest_rel(a=err_forecast, b=err_baseline, alternative="less")
 
         return p_value
+
 
     def MAE(self, psales_t, ann_rets):
         """
@@ -181,6 +186,7 @@ class ForecastModel:
 
         return mae_forecast, mae_baseline, p_value
     
+
     def MSE(self, psales_t, ann_rets):
             """
             Вычисляем среднюю квадратичную ошибку (MSE) между прогнозируемым annualized
@@ -222,6 +228,7 @@ class ForecastModel:
                                 err_baseline=err_baseline)
 
             return mse_forecast, mse_baseline, p_value
+    
     
     def R_squared(self, psales_t, ann_rets):
         """

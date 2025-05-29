@@ -1,16 +1,16 @@
 ########################################################################
 #
-# Keys used for naming columns in Pandas DataFrames.
+# Ключи, которые используются для именования столбцов в Pandas DataFrames.
 #
 ########################################################################
 #
-# This file is part of FinanceOps:
+# Этот файл часть FinanceOps:
 #
 # https://github.com/Hvass-Labs/FinanceOps
 #
-# Published under the MIT License. See the file LICENSE for details.
+# Опубликовано под лицензией MIT. См. файл LICENSE для деталей.
 #
-# Copyright 2018 by Magnus Erik Hvass Pedersen
+# Copyright 2018, Magnus Erik Hvass Pedersen
 #
 ########################################################################
 

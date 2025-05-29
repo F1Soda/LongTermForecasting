@@ -32,6 +32,7 @@ def one_period_returns(prices, future):
 
     return rets
 
+
 def get_bad_tickers(daily_returns_all, all_tickers, df_daily_prices):
     # Находим тикеры, чьи ежедневная рыночкая капитализация меньше 1_000_000 
     daily_trade_mcap = df_daily_prices[CLOSE] * df_daily_prices[VOLUME]
@@ -61,6 +62,7 @@ def get_bad_tickers(daily_returns_all, all_tickers, df_daily_prices):
                                             bad_tickers5]))
     
     return bad_tickers
+
 
 def prepare_data(df_daily_prices):
     # Используем ежедневные данные "Total Return", которые представляют собой цены акций,
