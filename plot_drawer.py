@@ -56,7 +56,7 @@ def plot_rolling_stats(df, stat_name, tickers, windows,
     # Добавлять горизонтальную черную пунктирную линию?
     if y_dashed_line is not None:
         for ax in g.axes:
-            # Рисуем черную пунктирную линию регионы потери vs выигрыш
+            # Рисуем черную пунктирную линию
             ax[0].axhline(y=y_dashed_line, color='black', linestyle='dashed')
 
     # Поправляем отступы
