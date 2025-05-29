@@ -1,8 +1,4 @@
-from itertools import chain, combinations
-import simfin as sf
-from simfin.names import (TOTAL_RETURN, CLOSE, VOLUME, TICKER,
-                          PSALES, DATE)
-from simfin.utils import BDAYS_PER_YEAR
+from simfin.names import (TOTAL_RETURN, CLOSE, VOLUME, TICKER)
 import numpy as np
 
 
