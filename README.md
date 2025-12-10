@@ -5,7 +5,7 @@
 Этот проект посвящён долгосрочному прогнозированию цен акций на основе исторических данных с использованием базовых 
 инструментов теории вероятности и экономики
 
-Работа основана на статье Magnus Erik Hvass Pedersen](https://github.com/Hvass-Labs) —
+Работа основана на статье [Magnus Erik Hvass Pedersen](https://github.com/Hvass-Labs) —
 [Long-Term Stock Forecasting](https://raw.githubusercontent.com/Hvass-Labs/Finance-Papers/master/pedersen2020long-term_stock_forecasting.pdf)
 и представляет собой её практический анализ и адаптацию для широкого круга читателей
 
